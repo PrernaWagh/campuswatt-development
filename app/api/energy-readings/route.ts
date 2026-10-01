@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 
-// GET: fetch all readings from Supabase
 export async function GET() {
   try {
     const supabase = await createServerSupabaseClient()
@@ -13,7 +12,6 @@ export async function GET() {
 
     if (error) throw error
 
-    // Normalize to match your EnergyReading type
     const readings = (data ?? []).map((row: any) => ({
       id: row.id,
       date: row.reading_date,
@@ -35,74 +33,88 @@ export async function GET() {
 
     return NextResponse.json({ readings })
   } catch (error: any) {
-    console.error('GET /api/energy-readings error:', error)
-    return NextResponse.json(
-      { error: error.message ?? 'Failed to fetch readings' },
-      { status: 500 }
-    )
+    console.error('GET error:', error)
+    return NextResponse.json({ error: error.message ?? 'Failed' }, { status: 500 })
   }
 }
 
-// POST: save a new reading
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    console.log('POST /api/energy-readings received:', body)
 
-    // Validation
     if (!body.buildingName) {
-      return NextResponse.json({ error: 'Building is required' }, { status: 400 })
-    }
-    if (body.powerWatts < 0 || body.quantity <= 0 || body.operatingHours < 0 || body.operatingHours > 24) {
-      return NextResponse.json({ error: 'Invalid numeric values' }, { status: 400 })
-    }
-    if (body.utilization < 0 || body.utilization > 100) {
-      return NextResponse.json({ error: 'Utilization must be 0-100' }, { status: 400 })
+      return NextResponse.json({ error: 'Building name missing' }, { status: 400 })
     }
 
     const supabase = await createServerSupabaseClient()
 
-    // Look up building ID
-    const { data: building, error: bErr } = await supabase
+    // Step 1: Always ensure building exists
+    const cleanName = String(body.buildingName).trim()
+    
+    // Try to find the building
+    let buildingId: string | null = null
+    const { data: existing } = await supabase
       .from('buildings')
       .select('id')
-      .eq('name', body.buildingName)
-      .single()
+      .ilike('name', cleanName)
+      .maybeSingle()
 
-    if (bErr || !building) {
-      return NextResponse.json({ error: 'Building not found' }, { status: 400 })
+    if (existing?.id) {
+      buildingId = existing.id
+      console.log('Building found:', buildingId)
+    } else {
+      // Auto-create
+      console.log('Building not found, creating:', cleanName)
+      const { data: created, error: createErr } = await supabase
+        .from('buildings')
+        .insert({ name: cleanName, code: cleanName.slice(0, 3).toUpperCase(), area_sq_m: 1000 })
+        .select('id')
+        .single()
+
+      if (createErr || !created) {
+        console.error('Create building error:', createErr)
+        return NextResponse.json(
+          { error: `Could not find or create building: ${createErr?.message}` },
+          { status: 500 }
+        )
+      }
+      buildingId = created.id
+      console.log('Building created:', buildingId)
     }
 
-    // Insert reading
+    // Step 2: Insert the reading
     const { data, error } = await supabase
       .from('energy_readings')
       .insert({
-        building_id: building.id,
+        building_id: buildingId,
         room_name: body.room || 'Unspecified',
-        category: body.category,
-        asset: body.asset,
-        power_watts: body.powerWatts,
-        quantity: body.quantity,
-        operating_hours: body.operatingHours,
-        operating_days: body.operatingDays ?? 26,
-        utilization: body.utilization,
-        active_hours: body.activeHours,
-        idle_hours: body.idleHours,
-        asset_age: body.age,
+        category: body.category || 'Other',
+        asset: body.asset || '',
+        power_watts: Number(body.powerWatts) || 0,
+        quantity: Number(body.quantity) || 1,
+        operating_hours: Number(body.operatingHours) || 0,
+        operating_days: Number(body.operatingDays) || 26,
+        utilization: Number(body.utilization) || 0,
+        active_hours: Number(body.activeHours) || 0,
+        idle_hours: Number(body.idleHours) || 0,
+        asset_age: Number(body.age) || 0,
         reading_date: body.date,
         source: 'COLLEGE DATA',
-        notes: body.notes,
+        notes: body.notes || null,
       })
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      console.error('Insert reading error:', error)
+      throw error
+    }
 
+    console.log('Reading saved:', data.id)
     return NextResponse.json({ id: data.id, success: true })
   } catch (error: any) {
-    console.error('POST /api/energy-readings error:', error)
-    return NextResponse.json(
-      { error: error.message ?? 'Failed to save reading' },
-      { status: 500 }
-    )
+    console.error('POST error:', error)
+    return NextResponse.json({ error: error.message ?? 'Failed to save' }, { status: 500 })
   }
 }
