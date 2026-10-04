@@ -122,8 +122,8 @@ function Badge({
     tone === 'amber'
       ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300'
       : tone === 'blue'
-      ? 'bg-sky-100 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300'
-      : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
+        ? 'bg-sky-100 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300'
+        : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${toneClass}`}
@@ -225,6 +225,7 @@ export default function Page() {
   const [form, setForm] = useState(emptyForm)
   const [showForm, setShowForm] = useState(false)
   const [expanded, setExpanded] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
 
   const [sim, setSim] = useState({
     devices: 60,
@@ -259,12 +260,16 @@ export default function Page() {
         setDark(true)
         document.documentElement.classList.add('dark')
       }
-    } catch {}
+    } catch { }
   }, [])
 
   const allReadings = useMemo(() => [...demo, ...college, ...user], [demo, college, user])
 
   const filtered = useMemo(() => {
+    if (selectedIds.length > 0) {
+      return allReadings.filter((r) => selectedIds.includes(r.id))
+    }
+
     const cutoff = range === '7 days' ? 7 : range === '3 months' ? 90 : 30
     const since = Date.now() - cutoff * 86400000
     return allReadings.filter(
@@ -276,8 +281,12 @@ export default function Page() {
         new Date(r.date).getTime() >= since &&
         `${r.building} ${r.room} ${r.asset}`.toLowerCase().includes(query.toLowerCase()),
     )
-  }, [allReadings, source, building, room, category, range, query])
-
+  }, [allReadings, source, building, room, category, range, query, selectedIds])
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    )
+  }
   const availableRooms = useMemo(() => {
     const pool = building === 'All Campus' ? allReadings : allReadings.filter((r) => r.building === building)
     return Array.from(new Set(pool.map((r) => r.room).filter(Boolean))).sort()
@@ -418,9 +427,8 @@ export default function Page() {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[252px] flex-col border-r border-slate-200 bg-white px-4 py-5 transition-transform dark:border-slate-800 dark:bg-slate-900 lg:translate-x-0 ${
-          menu ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`fixed inset-y-0 left-0 z-40 flex w-[252px] flex-col border-r border-slate-200 bg-white px-4 py-5 transition-transform dark:border-slate-800 dark:bg-slate-900 lg:translate-x-0 ${menu ? 'translate-x-0' : '-translate-x-full'
+          }`}
       >
         <div className="flex items-center justify-between px-2">
           <Logo />
@@ -440,11 +448,10 @@ export default function Page() {
                 setActive(label)
                 setMenu(false)
               }}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-xs font-semibold transition ${
-                active === label
-                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
-                  : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'
-              }`}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-xs font-semibold transition ${active === label
+                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
+                : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'
+                }`}
             >
               <Icon size={16} />
               {label}
@@ -494,22 +501,20 @@ export default function Page() {
           </div>
           <div className="flex items-center gap-2">
             <span
-              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${
-                dbStatus === 'online'
-                  ? 'bg-emerald-100 text-emerald-700'
-                  : dbStatus === 'offline'
+              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${dbStatus === 'online'
+                ? 'bg-emerald-100 text-emerald-700'
+                : dbStatus === 'offline'
                   ? 'bg-red-100 text-red-700'
                   : 'bg-slate-100 text-slate-500'
-              }`}
+                }`}
             >
               <span
-                className={`size-1.5 rounded-full ${
-                  dbStatus === 'online'
-                    ? 'bg-emerald-500 animate-pulse'
-                    : dbStatus === 'offline'
+                className={`size-1.5 rounded-full ${dbStatus === 'online'
+                  ? 'bg-emerald-500 animate-pulse'
+                  : dbStatus === 'offline'
                     ? 'bg-red-500'
                     : 'bg-slate-400'
-                }`}
+                  }`}
               />
               {dbStatus === 'online' ? 'DB Online' : dbStatus === 'offline' ? 'DB Offline' : 'Checking...'}
             </span>
@@ -526,8 +531,8 @@ export default function Page() {
                   ? 'Demo + User Data'
                   : 'Demo Data'
                 : source === 'DEMO'
-                ? 'Demo Data'
-                : 'User Data'}
+                  ? 'Demo Data'
+                  : 'User Data'}
             </Badge>
           </div>
         </header>
@@ -684,6 +689,7 @@ export default function Page() {
                 <table className="w-full min-w-[760px] text-left text-xs">
                   <thead className="text-[10px] uppercase tracking-wider text-slate-400">
                     <tr>
+                      <th className="w-8 px-3 py-3"></th>
                       {['Date', 'Building / Area', 'Category', 'Power', 'Hours', 'Energy', 'Source'].map((h) => (
                         <th key={h} className="px-3 py-3">
                           {h}
@@ -693,7 +699,20 @@ export default function Page() {
                   </thead>
                   <tbody>
                     {filtered.slice(0, 12).map((r) => (
-                      <tr key={r.id} className="border-t border-slate-100 dark:border-slate-800">
+                      <tr
+                        key={r.id}
+                        className={`border-t border-slate-100 dark:border-slate-800 ${selectedIds.includes(r.id) ? 'bg-emerald-50/60 dark:bg-emerald-950/20' : ''
+                          }`}
+                      >
+                        <td className="px-3 py-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(r.id)}
+                            onChange={() => toggleSelected(r.id)}
+                            className="size-3.5 cursor-pointer rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                            aria-label={`Select ${r.room} on ${r.date}`}
+                          />
+                        </td>
                         <td className="px-3 py-3">{r.date}</td>
                         <td className="px-3 py-3 font-semibold">
                           {r.building}
@@ -720,6 +739,19 @@ export default function Page() {
                   </div>
                 )}
               </div>
+              {selectedIds.length > 0 && (
+                <div className="mt-3 flex items-center justify-between rounded-xl bg-emerald-50 px-4 py-3 text-xs dark:bg-emerald-950/40">
+                  <span className="font-semibold text-emerald-800 dark:text-emerald-200">
+                    🔍 Focused on {selectedIds.length} selected {selectedIds.length === 1 ? 'reading' : 'readings'} — all pages are filtered to this scope.
+                  </span>
+                  <button
+                    onClick={() => setSelectedIds([])}
+                    className="rounded-lg bg-emerald-600 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white"
+                  >
+                    Clear selection
+                  </button>
+                </div>
+              )}
             </Card>
           </section>
         </div>
@@ -873,10 +905,10 @@ function Dashboard({ metrics, trend, categoryData, buildingData, issues, onNavig
             {buildingData[0]?.name ?? 'Campus'} accounts for{' '}
             {buildingData.length
               ? Math.round(
-                  (buildingData[0].value /
-                    buildingData.reduce((s: number, x: any) => s + x.value, 0)) *
-                    100,
-                )
+                (buildingData[0].value /
+                  buildingData.reduce((s: number, x: any) => s + x.value, 0)) *
+                100,
+              )
               : 0}
             % of calculated campus energy.
           </div>
