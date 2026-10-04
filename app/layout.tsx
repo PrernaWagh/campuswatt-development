@@ -1,27 +1,24 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import ServiceWorkerRegister from '@/components/ServiceWorkerRegister'
 
 export const metadata: Metadata = {
-  title: 'CampusWatt · Campus Energy Intelligence',
-  description: 'Measure energy, reduce waste, and build a greener campus with CampusWatt.',
-  generator: 'v0.app',
+  title: 'CampusWatt — Energy Intelligence',
+  description: 'Campus energy intelligence platform for monitoring, analyzing, and reducing energy consumption.',
+  manifest: '/manifest.webmanifest',
+  themeColor: '#1f8f79',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'CampusWatt',
+  },
   icons: {
     icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
+      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
     ],
-    apple: '/apple-icon.png',
+    apple: '/icons/icon-192.png',
   },
 }
 
@@ -42,6 +39,8 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased">
         {children}
+          <ServiceWorkerRegister />
+          {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
