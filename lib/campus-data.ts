@@ -57,7 +57,7 @@ export function calculateMetrics(readings: EnergyReading[], settings: Settings) 
 }
 export type WastageIssue = { id: string; type: string; reading: EnergyReading; evidence: string; saving: number; severity: 'High' | 'Medium' | 'Low'; action: string; rule: string }
 export function detectWastage(readings: EnergyReading[], settings: Settings): WastageIssue[] {
-  return readings.filter(r => r.source === 'USER INPUT' || r.date === readings[0]?.date).flatMap((r, i) => {
+  return readings.filter(r => r.source !== 'DEMO').flatMap((r, i) => {
     const issues: WastageIssue[] = []; const energy = readingEnergy(r, settings)
     if (r.utilization < settings.lowUtilization && r.operatingHours > 6) issues.push({ id: `${r.id}-low`, type: 'Low utilization / excess runtime', reading: r, evidence: `Utilization ${r.utilization}% with ${r.operatingHours} operating hours/day`, saving: energy * 0.2, severity: r.utilization < settings.idleThreshold ? 'High' : 'Medium', action: 'Enable automatic sleep mode and reduce idle operating hours.', rule: `Utilization < ${settings.lowUtilization}% AND operating hours > 6` })
     if (r.idleHours > 3) issues.push({ id: `${r.id}-idle`, type: 'Idle equipment running', reading: r, evidence: `${r.idleHours} idle/standby hours reported`, saving: energy * 0.12, severity: 'Medium', action: 'Schedule automatic shutdown after campus operating hours.', rule: 'Idle / standby hours > 3' })
