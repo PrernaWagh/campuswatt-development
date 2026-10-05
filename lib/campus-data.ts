@@ -17,7 +17,8 @@ export type EnergyReading = {
   utilization: number
   activeHours: number;
   idleHours: number;
-  age: number; source: DataSource;
+  age: number; 
+  source: DataSource;
   notes?: string;
   variation?: number; // <--- ADD THIS
 }

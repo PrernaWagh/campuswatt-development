@@ -672,7 +672,6 @@ export default function Page() {
                 >
                   <option value="All">All sources</option>
                   <option value="DEMO">Demo only</option>
-                  <option value="USER INPUT">User input only</option>
                   <option value="COLLEGE DATA">College data only</option>
                 </select>
                 <select
