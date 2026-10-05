@@ -34,7 +34,7 @@ export const categories: Category[] = ['Computing', 'Server', 'Storage', 'Networ
 export const buildings: Building[] = [
   { id: 'computer-center', name: 'Computer Center', area: 4200 }, { id: 'academic', name: 'Academic Block', area: 8200 },
   { id: 'administration', name: 'Administration Block', area: 3600 }, { id: 'library', name: 'Central Library', area: 5600 },
-  { id: 'laboratory', name: 'Laboratory Block', area: 7300 }, { id: 'hostel-a', name: 'Hostel A', area: 6900 }, 
+  { id: 'laboratory', name: 'Laboratory Block', area: 7300 }, { id: 'hostel-a', name: 'Hostel A', area: 6900 },
   { id: 'hostel-b', name: 'Hostel B', area: 6400 },
 ]
 export const defaultSettings: Settings = { tariff: 10, emissionFactor: 0.82, operatingDays: 26, lowUtilization: 30, idleThreshold: 20, oldAssetYears: 5 }
@@ -83,13 +83,14 @@ export function calculateMetrics(readings: EnergyReading[], settings: Settings) 
   const itEnergy = readings.filter(r => ['Computing', 'Server', 'Storage', 'Networking'].includes(r.category)).reduce((s, r) => s + readingEnergy(r, settings), 0)
   return { totalEnergy, cost: calculateCost(totalEnergy, settings), carbon: calculateCarbon(totalEnergy, settings), potentialSavings, pue: itEnergy ? totalEnergy / itEnergy : 1, dcie: totalEnergy ? itEnergy / totalEnergy * 100 : 0, intensity: totalEnergy / buildings.reduce((s, b) => s + b.area, 0), itEnergy }
 }
-export type WastageIssue = { id: string; 
-  type: string; 
-  reading: EnergyReading; 
-  evidence: string; 
-  saving: number; 
-  severity: 'High' | 'Medium' | 'Low'; 
-  action: string; rule: string 
+export type WastageIssue = {
+  id: string;
+  type: string;
+  reading: EnergyReading;
+  evidence: string;
+  saving: number;
+  severity: 'High' | 'Medium' | 'Low';
+  action: string; rule: string
 }
 export function detectWastage(
   readings: EnergyReading[],
@@ -97,15 +98,14 @@ export function detectWastage(
 ): WastageIssue[] {
   const issues: WastageIssue[] = []
 
-  // Ignore synthetic DEMO records for wastage detection
-  const actualReadings = readings.filter((r) => r.source !== 'DEMO')
+  const actualReadings = readings.filter(
+    (r) => r.source !== 'DEMO'
+  )
 
-  // ---------------------------------------------------------
-  // RULE 1: LOW UTILIZATION + LONG RUNTIME
-  // ---------------------------------------------------------
   for (const r of actualReadings) {
     const energy = readingEnergy(r, settings)
 
+    // RULE 1
     if (
       r.utilization < settings.lowUtilization &&
       r.operatingHours > 6
@@ -114,7 +114,9 @@ export function detectWastage(
         id: `${r.id}-low-utilization`,
         type: 'Low utilization / excess runtime',
         reading: r,
-        evidence: `Utilization ${r.utilization}% with ${r.operatingHours} operating hours/day`,
+        evidence:
+          `Utilization ${r.utilization}% with ` +
+          `${r.operatingHours} operating hours/day`,
         saving: energy * 0.20,
         severity:
           r.utilization < settings.idleThreshold
@@ -122,47 +124,47 @@ export function detectWastage(
             : 'Medium',
         action:
           'Enable automatic sleep mode and reduce unnecessary operating hours.',
-        rule: `Utilization < ${settings.lowUtilization}% AND operating hours > 6`,
+        rule:
+          `Utilization < ${settings.lowUtilization}% ` +
+          `AND operating hours > 6`,
       })
     }
 
-    // ---------------------------------------------------------
-    // RULE 2: EXCESSIVE IDLE / STANDBY TIME
-    // ---------------------------------------------------------
+    // RULE 2
     if (r.idleHours > 3) {
       issues.push({
         id: `${r.id}-idle`,
         type: 'Excessive idle / standby time',
         reading: r,
-        evidence: `${r.idleHours} idle/standby hours reported per day`,
+        evidence:
+          `${r.idleHours} idle/standby hours reported per day`,
         saving: energy * 0.12,
-        severity: r.idleHours > 6 ? 'High' : 'Medium',
+        severity:
+          r.idleHours > 6 ? 'High' : 'Medium',
         action:
           'Enable automatic shutdown or sleep after prolonged inactivity.',
         rule: 'Idle / standby hours > 3',
       })
     }
 
-    // ---------------------------------------------------------
-    // RULE 3: EXCESSIVE OPERATING HOURS
-    // ---------------------------------------------------------
+    // RULE 3
     if (r.operatingHours > 12) {
       issues.push({
         id: `${r.id}-runtime`,
         type: 'Excessive operating hours',
         reading: r,
-        evidence: `${r.operatingHours} operating hours/day detected`,
+        evidence:
+          `${r.operatingHours} operating hours/day detected`,
         saving: energy * 0.10,
-        severity: r.operatingHours > 18 ? 'High' : 'Medium',
+        severity:
+          r.operatingHours > 18 ? 'High' : 'Medium',
         action:
           'Review operating schedules and switch equipment off when it is not required.',
         rule: 'Operating hours > 12 hours/day',
       })
     }
 
-    // ---------------------------------------------------------
-    // RULE 4: HIGH POWER + LOW UTILIZATION
-    // ---------------------------------------------------------
+    // RULE 4
     if (
       r.powerWatts > 150 &&
       r.utilization < 40 &&
@@ -170,10 +172,10 @@ export function detectWastage(
     ) {
       issues.push({
         id: `${r.id}-high-power-low-use`,
-        type: 'High power consumption with low utilization',
+        type: 'High power with low utilization',
         reading: r,
         evidence:
-          `${r.powerWatts}W rated power with only ` +
+          `${r.powerWatts}W rated power with ` +
           `${r.utilization}% utilization`,
         saving: energy * 0.15,
         severity:
@@ -181,15 +183,13 @@ export function detectWastage(
             ? 'High'
             : 'Medium',
         action:
-          'Evaluate power-efficient alternatives, consolidation, or workload scheduling.',
+          'Evaluate consolidation, right-sizing or energy-efficient alternatives.',
         rule:
           'Rated power > 150W AND utilization < 40% AND operating hours > 6',
       })
     }
 
-    // ---------------------------------------------------------
-    // RULE 5: ACTIVE HOURS MUCH LOWER THAN OPERATING HOURS
-    // ---------------------------------------------------------
+    // RULE 5
     if (
       r.operatingHours > 6 &&
       r.activeHours > 0 &&
@@ -214,36 +214,32 @@ export function detectWastage(
       })
     }
 
-    // ---------------------------------------------------------
-    // RULE 6: OLD / LEGACY HIGH-ENERGY EQUIPMENT
-    // ---------------------------------------------------------
+    // RULE 6
     if (
       r.age > settings.oldAssetYears &&
-      r.powerWatts > 120 &&
-      energy > 5000
+      r.powerWatts > 120
     ) {
       issues.push({
         id: `${r.id}-old`,
         type: 'Potential legacy equipment concern',
         reading: r,
         evidence:
-          `${r.age} years old, ${r.powerWatts}W rated power, ` +
-          `and ${energy.toFixed(1)} kWh calculated monthly energy`,
+          `${r.age} years old with ` +
+          `${r.powerWatts}W rated power`,
         saving: energy * 0.08,
         severity:
-          r.age > settings.oldAssetYears + 3
+          r.age >= settings.oldAssetYears + 3
             ? 'High'
-            : 'Low',
+            : 'Medium',
         action:
-          'Investigate replacement with energy-efficient equipment or optimize its operating schedule.',
+          'Investigate replacement with a more energy-efficient alternative or optimize its operating schedule.',
         rule:
           `Asset age > ${settings.oldAssetYears} years ` +
-          `AND rated power > 120W AND energy > 5000 kWh`,
+          `AND rated power > 120W`,
       })
     }
   }
 
-  // Prevent the page from being overloaded
   return issues.slice(0, 24)
 }
 export function formatMetric(value: number) {
@@ -260,5 +256,5 @@ export function createUserReading(input: Omit<EnergyReading, 'id' | 'source' | '
   const building = buildings.find(b => b.name === input.building) ?? buildings[0]
   return { ...input, id: `user-${Date.now()}`, source: 'USER INPUT', buildingId: building.id }
 }
-// Note: synthetic data intentionally remains local-first so the app is usable without physical meters. The exported types and 
+// Note: synthetic data intentionally remains local-first so the app is usable without physical meters. The exported types and
 // centralized functions make replacing the repository with Supabase/CSV data straightforward.
